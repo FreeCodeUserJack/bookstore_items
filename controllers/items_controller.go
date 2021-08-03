@@ -1,12 +1,15 @@
 package controllers
 
 import (
-	"fmt"
+	"encoding/json"
+	"io/ioutil"
 	"net/http"
 
 	"github.com/FreeCodeUserJack/bookstore_items/domain/items"
 	"github.com/FreeCodeUserJack/bookstore_items/services"
+	"github.com/FreeCodeUserJack/bookstore_items/utils/http_utils"
 	"github.com/FreeCodeUserJack/bookstore_oauth-common/oauth"
+	"github.com/FreeCodeUserJack/bookstore_utils/rest_errors"
 )
 
 var (
@@ -22,21 +25,36 @@ type itemsController struct {}
 
 func (c *itemsController) Create(w http.ResponseWriter, r *http.Request) {
 	if err := oauth.AuthenticateRequest(r); err != nil {
-		// TODO: Return error json to the user
+		http_utils.ResponseError(w, err)
 		return
 	}
-	item := items.Item {
-		Seller: oauth.GetCallerId(r),
+
+	var itemRequest items.Item
+
+	reqBody, readErr := ioutil.ReadAll(r.Body)
+	if readErr != nil {
+		respErr := rest_errors.NewBadRequestError("invalid request body")
+		http_utils.ResponseError(w, respErr)
+		return
+	}
+	defer r.Body.Close()
+
+	jsonErr := json.Unmarshal(reqBody, &itemRequest)
+	if jsonErr != nil {
+		respErr := rest_errors.NewBadRequestError("invalid item json")
+		http_utils.ResponseError(w, respErr)
+		return
 	}
 
-	result, err := services.ItemsService.Create(item)
+	itemRequest.Seller = oauth.GetCallerId(r)
+
+	result, err := services.ItemsService.Create(itemRequest)
 	if err != nil {
-		// TODO: Return error json to the user
+		http_utils.ResponseError(w, err)
+		return
 	}
 
-	fmt.Println(result)
-
-	// TODO: return created item as JSON with http status 201 created
+	http_utils.ResponseJson(w, http.StatusCreated, result)
 }
 
 func (c *itemsController) Get(w http.ResponseWriter, r *http.Request) {
