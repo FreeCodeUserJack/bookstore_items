@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FreeCodeUserJack/bookstore_items/clients/elasticsearch"
+	"github.com/FreeCodeUserJack/bookstore_items/domain/queries"
 	"github.com/FreeCodeUserJack/bookstore_utils/rest_errors"
 )
 
@@ -49,4 +50,28 @@ func (i *Item) Get() (rest_errors.RestError) {
 	
 	i.Id = itemId
 	return nil
+}
+
+func (i *Item) Search(query queries.EsQuery) ([]Item, rest_errors.RestError) {
+	result, err := elasticsearch.ESClient.Search(indexItems, query.Build())
+	if err != nil {
+		return nil, rest_errors.NewInternalServerError("error when trying to search documents", errors.New("database error"))
+	}
+
+	items := make([]Item, result.TotalHits())
+	for index, hit := range result.Hits.Hits {
+		bytes, _ := hit.Source.MarshalJSON()
+		var item Item
+		if err := json.Unmarshal(bytes, &item); err != nil {
+			return nil, rest_errors.NewInternalServerError("error when trying to parse response", errors.New("database error"))
+		}
+		item.Id = hit.Id
+		items[index] = item
+	}
+
+	if len(items) == 0 {
+		return nil, rest_errors.NewNotFoundError("no items found matching given criteria")
+	}
+
+	return items, nil
 }

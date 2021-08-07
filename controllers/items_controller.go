@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FreeCodeUserJack/bookstore_items/domain/items"
+	"github.com/FreeCodeUserJack/bookstore_items/domain/queries"
 	"github.com/FreeCodeUserJack/bookstore_items/services"
 	"github.com/FreeCodeUserJack/bookstore_items/utils/http_utils"
 	"github.com/FreeCodeUserJack/bookstore_oauth-common/oauth"
@@ -21,6 +22,7 @@ var (
 type itemsControllerInterface interface {
 	Create(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
+	Search(w http.ResponseWriter, r *http.Request)
 }
 
 type itemsController struct {}
@@ -76,4 +78,30 @@ func (c *itemsController) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http_utils.ResponseJson(w, http.StatusOK, item)
+}
+
+func (c *itemsController) Search(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		apiErr := rest_errors.NewBadRequestError("invalid json body")
+		http_utils.ResponseError(w, apiErr)
+		return
+	}
+	defer r.Body.Close()
+
+	var query queries.EsQuery
+	if err := json.Unmarshal(bytes, &query); err != nil {
+		apiErr := rest_errors.NewBadRequestError("invalid json body")
+		http_utils.ResponseError(w, apiErr)
+		return
+	}
+
+	items, searchErr := services.ItemsService.Search(query)
+	if err != nil {
+		http_utils.ResponseError(w, searchErr)
+		return
+	}
+
+	http_utils.ResponseJson(w, http.StatusOK, items)
 }

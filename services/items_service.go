@@ -2,6 +2,7 @@ package services
 
 import (
 	"github.com/FreeCodeUserJack/bookstore_items/domain/items"
+	"github.com/FreeCodeUserJack/bookstore_items/domain/queries"
 	"github.com/FreeCodeUserJack/bookstore_utils/rest_errors"
 )
 
@@ -12,6 +13,7 @@ var (
 type itemsServiceInterface interface {
 	Create(items.Item) (*items.Item, rest_errors.RestError)
 	Get(string) (*items.Item, rest_errors.RestError)
+	Search(queries.EsQuery) ([]items.Item, rest_errors.RestError)
 }
 
 type itemsService struct {
@@ -33,4 +35,9 @@ func (s *itemsService) Get(id string) (*items.Item, rest_errors.RestError) {
 	}
 
 	return &item, nil
+}
+
+func (s *itemsService) Search(query queries.EsQuery) ([]items.Item, rest_errors.RestError) {
+	dao := items.Item{}
+	return dao.Search(query)
 }
